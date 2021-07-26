@@ -1,33 +1,47 @@
-[![GS-Frame](https://img.shields.io/badge/github-GeoStat_Framework-468a88?logo=github&style=flat)](https://github.com/GeoStat-Framework)
-[![Gitter](https://badges.gitter.im/GeoStat-Examples/community.svg)](https://gitter.im/GeoStat-Examples/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
+# Overview
 
-# Template
-
-This is a template for an example repository.
-
-You can create a new example by simply clicking on "Use this template".
-
-The included example is showing the generation of a conditioned random field ensemble
-in 1D taken from [GSTools](https://geostat-framework.readthedocs.io/projects/gstools/en/stable/examples/06_conditioned_fields/00_condition_ensemble.html#sphx-glr-examples-06-conditioned-fields-00-condition-ensemble-py).
-
+This project provides a python scripts to simulate the wave propagation from 
+an open water body into an aquifer. Simulations can be performed via the numerical
+solver ModFlow throught the Python API flopy or using a semianalytical solution.
+The code comes along three input waves: a tidal wave, an artifical square wave
+and the time series of a river.
 
 ## Structure
 
-Please try to organize your example in the given Structure
-- `data/` - here you should place your input data
-- `src/` - here you should place your python scripts
-- `results/` - here your computed results and plots should be stored
-- `README.md` - please describe your example in the readme, potentially showing results
-- `LICENSE` - the default license is MIT, you can use another one if wanted
+The project is organized as follows:
 
-
+- `README.md`   - description of the project
+- `LICENSE`     - the default license is MIT
+- `results/`    - folder with simulation results and plots
+- `data/`       - input data of waves in open water bodies
+- `src/`        - folder containing the Python scripts of the project:
+  + `01_plot_waves.py` 
+                 - Settings of three example, including the plotting of
+                   the three input waves
+  + `02_run_num_model.py` 
+                 - running numerical simulation of selected example and saving
+                   simulation results in pickle-file (in results)
+  + `03_run_ana_model.py` 
+                 - running analytical model of selected example and saving
+                   simulation results in pickle-file (in results)
+  + `04_compare_models.py` 
+                 - compare numerical and analytical model results for 
+                   selected example 
+  + `05_check_num_river.py` 
+                 - comparing river example at two temporal resolutions of 
+                   input wave                   
+  + `WavePropagationAquifers.py` 
+                 - class of 1D aquifer model containing routines for numerical
+                   simulation, input wave handling, fft decomposition and 
+                   analytical solution
+  + `flopy_model.py` 
+                 - functions of 1D Modflow models (via flopy) for simulating
+                   wave propagation in aquifers from time dependent boundary condition
+                       
 ## Python environment
 
-To make the example reproducible, it would be a good practice to provide one of
-the following files:
+To make the example reproducible, we provide the following files:
 - `requirements.txt` - requirements for [pip](https://pip.pypa.io/en/stable/user_guide/#requirements-files) to install all needed packages
-- `spec-file.txt` - specification file to create the original [conda environment](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#building-identical-conda-environments)
-
 
 ## Workflow
 
@@ -41,9 +55,9 @@ For further development use the `develop` branch and update `master` with pull-r
 
 ## Contact
 
-You can contact us via <info@geostat-framework.org>.
+You can contact us via <a.zech@uu.nl>.
 
 
 ## License
 
-MIT © 2020
+MIT © 2021

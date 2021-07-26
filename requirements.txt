@@ -1,2 +1,6 @@
-gstools==1.2.1
 matplotlib
+scipy
+pickle
+os
+flopy
+time
