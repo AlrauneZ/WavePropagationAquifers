@@ -17,13 +17,13 @@ class WavePropagationAquifers:
                  task_root      = '../results' ,
                  BC_setting     = 'wave',
                  flow_setting   = 'confined',   
-                 hk             = 25.,      # horizontal hydraulic conductivity (confined aquifer)
+                 hk             = 25.,      # horizontal hydraulic conductivity (confined aquifer) [m/d]
                  ss             = 5e-5,     # storage term (confined aquifer)
-                 d_conf         = 10.,      # thickness (confined aquifer)
+                 d_conf         = 10.,      # thickness (confined aquifer) [m]
                  ss_unconfined  = 0.025,    # storage term (unconfined aquifer) = specific yield/thickness
-                 c_L            = 100.,     # resistance = 1/leakage coefficient 
+                 c_L            = 100.,     # resistance = 1/leakage coefficient [d]
                  d_barrier      = 0.1,      # Thickness barrier [m]
-                 c_barrier      = 100.,      # resistance barrier
+                 c_barrier      = 10.,      # resistance barrier [d]
                  **settings,
                  ):
 
@@ -47,7 +47,7 @@ class WavePropagationAquifers:
             self.c_L = c_L      # resistance = 1/leakage coefficient= thickness confining/K_confining
         elif flow_setting == 'barrier':
             ### parameters for flow barrier (low-K interface)
-            self.d_barrier = d_barrier  # Thickness barrier [m]
+            self.d_barrier = d_barrier        # Thickness barrier [m]
             self.c_barrier = c_barrier        # resistance barrier = thickness barrier/K_barrier
        
         self.wave = None
@@ -214,7 +214,8 @@ class WavePropagationAquifers:
         
         if file_results is None:
             file_results= r'{}/{}_numerical.p'.format(self.task_root,self.task_name)
-            
+        # print(file_results)    
+        
         if not os.path.isfile(file_results):
             raise ValueError('File with stored numerical model results not existant at: \n {}'.format(file_results))
 
@@ -635,12 +636,12 @@ class WavePropagationAquifers:
                  p0 = [2e-6,0.05],
                  bounds = ([1e-9,1e-3], [1e-3,10]),
                  verbose = True,
+                 fix_cS = False,
                  **kwargs,
                  ):
         
         # if self.flow_setting != 'leakage':
         #     raise ValueError('Fitting routine does not match flow setting! (choose leakage)')
-
         self.extract_dominant_input_wave_component()
         self.extract_piez_wave_component()
 
@@ -652,35 +653,61 @@ class WavePropagationAquifers:
             a2 = self.x_piez *np.sqrt(self.w_max * 0.5 * diffusivity) / p2
             h_xt = self.A_max * np.exp(-a1) * np.cos(self.w_max*t + self.phi_max -a2)
             return h_xt
-                    
-        popt, pcov = curve_fit(
-            model_leakage,
-            self.t_piez,
-            self.wave_piez_max,
-            p0 = p0,
-            bounds=bounds,
-            )
+
+        def model_leakage_fix_cS(t,diffusivity):
+            ### leakage model for dominant wave component
+            # p2 = np.sqrt(np.sqrt(1./cS**2 + 1) + 1./(cS*self.w_max))
+            p2 = np.sqrt(np.sqrt(1./(fix_cS*self.w_max)**2 + 1) + 1./(fix_cS*self.w_max))
+            a1 = self.x_piez *np.sqrt(self.w_max * 0.5 * diffusivity)* p2
+            a2 = self.x_piez *np.sqrt(self.w_max * 0.5 * diffusivity) / p2
+            h_xt = self.A_max * np.exp(-a1) * np.cos(self.w_max*t + self.phi_max -a2)
+            return h_xt
+
+        if fix_cS is False:                    
+            popt, pcov = curve_fit(
+                model_leakage,
+                self.t_piez,
+                self.wave_piez_max,
+                p0 = p0,
+                bounds=bounds,
+                )
+
+        else:
+            popt, pcov = curve_fit(
+                model_leakage_fix_cS,
+                self.t_piez,
+                self.wave_piez_max,
+                p0 = p0[0],
+                bounds=bounds[0],
+                )        
+
 
         self.diff_fit = popt[0]
-        self.cS_fit = popt[1]
-
         ### calculate relative difference of fitted diffusivity to input value
         self.eps_diff = relative_difference(self.ss / self.hk, self.diff_fit)
-        self.eps_cS = relative_difference(self.c_L*self.ss*self.d_conf, self.cS_fit)
+
+    
+        if fix_cS is False:                    
+            self.cS_fit = popt[1]
+            self.eps_cS = relative_difference(self.c_L*self.ss*self.d_conf, self.cS_fit)
+
+        else:
+            self.cS_fit = fix_cS
+            self.eps_cS = 0
 
         ### calculate dominant wave componant of analytical solution for fitted values
         self.wave_ana_max = model_leakage(self.t_piez,self.diff_fit,self.cS_fit)
 
         ### calculate head with analytical solution for fitted diffusivity value
-        if self.flow_setting == 'confined':
-            self.head_ana_fit = self.run_analytical_model(
-                t_ana = self.t_piez,
-                t_rel = False,
-                x_ana = self.x_piez,
-                diffusivity = self.diff_fit,
-                cS = self.cS_fit,
-                # cT = self.cT_fit,
-                )[2]
+        # if self.flow_setting == 'confined':
+        self.head_ana_fit = self.run_analytical_model(
+            t_ana = self.t_piez,
+            t_rel = False,
+            x_ana = self.x_piez,
+            diffusivity = self.diff_fit,
+            cS = self.cS_fit,
+            # cT = self.cT_fit,
+            )[2]
 
         if verbose:
             print('Inverse Estimation Results')
@@ -689,6 +716,9 @@ class WavePropagationAquifers:
             print("Fitted diffusivity = {:.2e}".format(self.diff_fit))
             print("Relative difference = {:.2f}%".format(self.eps_diff))
             
+            if fix_cS is not False:                    
+                print("\nFit with fixed cS")
+                
             print("\nInput Factor c*S = {:.2e} d".format(self.c_L*self.ss*self.d_conf))
             print("Fitted factor c*S = {:.2e} d".format(self.cS_fit))
             print("Relative difference = {:.2f}%".format(self.eps_cS))

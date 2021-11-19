@@ -30,11 +30,12 @@ BC3 = dict(
     coarsen_x=1.,
     )
 
-BC = BC2
+BC = BC1
 
 Ex = WavePropagationAquifers(
     flow_setting = flow_setting,
     **BC)
+
 Ex.read_wave(**BC) 
 
 ##############################################################################

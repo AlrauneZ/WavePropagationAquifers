@@ -486,7 +486,7 @@ def model_barrier(dt,
                 ss = 5e-05,         # Specific storage [m-1]
                 # hk_barrier = 0.01,  # hydraulic conductivity barrier
                 d_barrier = 0.1,    # Thickness sheetpiles [m]
-                c_barrier = 100.,    # resistance barrier [d]
+                c_barrier = 10.,    # resistance barrier [d]
                 dx_max = 2,         # max 
                 # sy=0.33,          # specific yield
                 # laytyp = -1       # Unconfined (laytyp > 0)
@@ -540,6 +540,9 @@ def model_barrier(dt,
     hk_barrier = d_barrier/c_barrier                    # conductivity of barrier [m/d]
     i_barrier  = (np.abs(xi - d_barrier)).argmin()      # Index of x-location where barrier ends
     hks[:,:,0:i_barrier] = hk_barrier      
+    # print('index:', hks.shape[2],i_barrier)
+    # print('K_values:', hk,hk_barrier)
+    # print(hks[:,:,0:i_barrier+20])
 
     # Assign hydraulic parameters
     flopy.modflow.ModflowLpf(
