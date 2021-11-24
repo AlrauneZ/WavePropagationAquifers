@@ -37,13 +37,20 @@ flow_setting = 'leakage'
 run_sims = False #True #
 
 ### select heads at x_piez for all resistance values
-select_heads = True #False #
+select_heads = False #True #
 
-### perform inverse estimation
-inverse_est = False #True #
+### perform inverse estimation of numerical results with confined solution
+inverse_est_confined = False #True #
+
+### perform inverse estimation of numerical results with leakage solution
+inverse_est_leakage = True # False # 
+### When inverse estimation with leakage solution: fix resistance
+fix_cS = False # True #
+
+### observation location
+x_piez = 400
 
 ### range of tested resistances
-
 if flow_setting == 'leakage':
     # cL_range = np.logspace(2,5,10 * 3 + 1,endpoint = True)
     # cL_range = np.logspace(4,5,10 + 1,endpoint = True)
@@ -54,8 +61,6 @@ elif flow_setting == 'barrier':
     # cL_range = np.logspace(-2.9,-2.1,5 ,endpoint = True)
 # print((np.log10(cL_range)))
 
-### observation location
-x_piez = 50
 
 Ex = WavePropagationAquifers(
     flow_setting = flow_setting,
@@ -80,8 +85,9 @@ if not os.path.exists(dir_cL):
 
 file_results = '{}{}_cL'.format(dir_cL,Ex.task_name)+'_{:0.1f}.p'   ### simulation results for individual resistance values
 file_heads_cL = '{}{}_heads_cL_x{:.0f}.txt'.format(dir_cL,Ex.task_name,x_piez)      ### heads at selected x for various resistance values
-# file_fit_cL_leakage = '{}{}_fit_cL_x{:.0f}_leakage.txt'.format(dir_cL,Ex.task_name,x_piez)      ### file containing fitting results assuming leakage solution
 file_fit_cL_confined = '{}{}_fit_cL_x{:.0f}_confined.txt'.format(dir_cL,Ex.task_name,x_piez)    ### file containing fitting results assuming confined solution
+file_fit_cL_leakage = '{}{}_fit_cL_x{:.0f}_leakage.txt'.format(dir_cL,Ex.task_name,x_piez)      ### file containing fitting results assuming leakage solution
+file_fit_cL_leakage_fix = '{}{}_fit_cL_x{:.0f}_leakage_fixcS.txt'.format(dir_cL,Ex.task_name,x_piez)      ### file containing fitting results assuming leakage solution
 
 ##############################################################################
 ### run simulation for individual resistance values
@@ -140,15 +146,11 @@ if select_heads:
 ### Inverse parameter estimation for analytical solution(s)
 ##############################################################################
 
-if inverse_est:   
+if inverse_est_confined:   
     print('\n### Inverse estimation for resistance values ###\n')
 
     fit_results_confined = np.zeros((3,len(cL_range)))
     fit_results_confined[0,:] = cL_range
-
-    # if flow_setting == 'leakage':
-    #     fit_results_leakage = np.zeros((5,len(cL_range)))
-    #     fit_results_leakage[0,:] = cL_range
 
     ### load numerical simulation data at x_piez from file
     h_piez,x_piez,t_piez,cL_range = read_heads_cL(file_heads_cL) 
@@ -159,21 +161,6 @@ if inverse_est:
         Ex.fit_data_to_analytical_confined()
         fit_results_confined[1,ic] = Ex.diff_fit
         fit_results_confined[2,ic] = Ex.eps_diff
-
-        # if flow_setting == 'leakage':
-        #     cS_init = Ex.c_L * Ex.ss*Ex.d_conf
-        #     Ex.fit_data_to_analytical_leakage(
-        #         p0 = [1e-6,0.5*cS_init],
-        #         bounds = ([1e-8,1e-1], [1e-4,1e7]))
-        #     print('c_L ', Ex.c_L)
-        #     print('cS_init ', cS_init)
-        #     print('cS_fit ' , Ex.cS_fit)
-        #     # print(relative_difference(Ex.cT_fit,cT_init))
-            
-        #     fit_results_leakage[1,ic] = Ex.diff_fit
-        #     fit_results_leakage[2,ic] = Ex.eps_diff
-        #     fit_results_leakage[3,ic] = Ex.cS_fit
-        #     fit_results_leakage[4,ic] = Ex.eps_cS
                      
     np.savetxt(file_fit_cL_confined,fit_results_confined,delimiter =',')
     # if flow_setting == 'leakage':
@@ -186,58 +173,53 @@ if inverse_est:
     ### Plot Fitting Results
     ###############################################################################
 
-    # textsize = 8    
-    # plt.close('all')
-    # plt.figure(figsize=[3.75,2.5])
-    # plt.plot(cL_range,fit_results_confined[2,:],'-o',c = 'C1',label = 'fit confined solution')
-    # if flow_setting == 'leakage':
-    #     plt.plot(cL_range,fit_results_leakage[2,:],'-o',c = 'C0',label = 'fit leakage solution')
+if inverse_est_leakage:   
+    print('\n### Inverse estimation for resistance values ###\n')
+
+    if flow_setting != 'leakage':
+        raise ValueError('Flow setting needs to be set to leakage')
+
+    fit_results_leakage = np.zeros((5,len(cL_range)))
+    fit_results_leakage[0,:] = cL_range
+
+    ### load numerical simulation data at x_piez from file
+    h_piez,x_piez,t_piez,cL_range = read_heads_cL(file_heads_cL) 
+    Ex.t_piez =  t_piez   
     
-    # plt.title("Diffusivity fit at $x = {:.0f}$m as function of resistance value".format(x_piez),fontsize = textsize)
-    # plt.xlabel("Resistance $c$ [d]",fontsize = textsize)
-    # plt.ylabel("Relative difference [%]",fontsize = textsize)
-    # plt.xscale('log')
-    # plt.ylim([0,10])
-    # plt.grid(True)
-    # plt.legend(fontsize = textsize)
-    # plt.savefig('{}/{}_Fit4Resistance_x{:.0f}.png'.format(dir_cL,Ex.task_name,x_piez),dpi=300)
+    for ic, c_L in enumerate(cL_range):
+        Ex.h_piez = h_piez[:,ic] 
+        Ex.c_L = c_L
 
-# inverse_est_leakage = False
-# file_fit_cL_leakage = '{}{}_fit_cL_x{:.0f}_leakage.txt'.format(dir_cL,Ex.task_name,x_piez)      ### file containing fitting results assuming leakage solution
+        cS_init = Ex.c_L * Ex.ss* Ex.d_conf
+        diff_init = Ex.ss/Ex.hk
 
-# if inverse_est_leakage:   
-#     print('\n### Inverse estimation for resistance values ###\n')
-
-#     if flow_setting != 'leakage':
-#         raise ValueError('Flow setting needs to be leakage')
-
-#     fit_results_leakage = np.zeros((5,len(cL_range)))
-#     fit_results_leakage[0,:] = cL_range
-
-#     ### load numerical simulation data at x_piez from file
-#     h_piez,x_piez,t_piez,cL_range = read_heads_cL(file_heads_cL) 
-#     Ex.t_piez =  t_piez   
+        if fix_cS:
+            Ex.fit_data_to_analytical_leakage(
+                fix_cS = cS_init,
+                p0 = [0.5*diff_init,0.5*cS_init],
+                bounds = ([1e-9,1e-6], [1e-3,10]), # lower bounds, upper bounds
+                )
+            fit_results_leakage[1,ic] = Ex.diff_fit
+            fit_results_leakage[2,ic] = Ex.eps_diff
     
-#     for ic, c_L in enumerate(cL_range):
-#         Ex.h_piez = h_piez[:,ic] 
-#         Ex.fit_data_to_analytical_leakage()
+            np.savetxt(file_fit_cL_leakage_fix,fit_results_leakage,delimiter =',')
+            print('\nInverse estimation results saved to file: \n', file_fit_cL_leakage_fix)
+    
+        else:
+            Ex.fit_data_to_analytical_leakage(
+                p0 = [0.5*diff_init,0.5*cS_init],
+                bounds = ([1e-9,1e-6], [1e-3,10]), # lower bounds, upper bounds
+                )
+            fit_results_leakage[1,ic] = Ex.diff_fit
+            fit_results_leakage[2,ic] = Ex.eps_diff
+            fit_results_leakage[3,ic] = Ex.cS_fit
+            fit_results_leakage[4,ic] = Ex.eps_cS
+            np.savetxt(file_fit_cL_leakage,fit_results_leakage,delimiter =',')
+            print('\nInverse estimation results saved to file: \n', file_fit_cL_leakage)
+        # print('c_L ', Ex.c_L)
+        # print('cS_init ', cS_init)
+        # print('cS_fit ' , Ex.cS_fit)
+                           
+    print('\n### Inverse estimation finished ###\n')
 
-#         cS_init = Ex.c_L * Ex.ss* Ex.d_conf
 
-#         Ex.fit_data_to_analytical_leakage(
-#             p0 = [1e-6,0.5*cS_init],
-#             bounds = ([1e-8,1e-1], [1e-4,1e7]))
-
-#         print('c_L ', Ex.c_L)
-#         print('cS_init ', cS_init)
-#         print('cS_fit ' , Ex.cS_fit)
-#         # print(relative_difference(Ex.cT_fit,cT_init))
-        
-#         fit_results_leakage[1,ic] = Ex.diff_fit
-#         fit_results_leakage[2,ic] = Ex.eps_diff
-#         fit_results_leakage[3,ic] = Ex.cS_fit
-#         fit_results_leakage[4,ic] = Ex.eps_cS
-                     
-#     np.savetxt(file_fit_cL_leakage,fit_results_leakage,delimiter =',')
-#     print('\nInverse estimation results saved to file: \n', file_fit_cL_leakage)
-#     print('\n### Inverse estimation finished ###\n')

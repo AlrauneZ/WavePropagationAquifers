@@ -710,7 +710,7 @@ class WavePropagationAquifers:
             )[2]
 
         if verbose:
-            print('Inverse Estimation Results')
+            print('/nInverse Estimation Results')
             print('-------------------------- \n')
             print("Input Diffusivity S_s/K = {:.2e} d/m^2".format(self.ss/self.hk))
             print("Fitted diffusivity = {:.2e}".format(self.diff_fit))
