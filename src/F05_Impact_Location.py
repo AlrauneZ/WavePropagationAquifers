@@ -23,6 +23,8 @@ BC3 = dict(
     normalize_hs = True,
     )
 
+file_name = '../results/{}_diff_fit_locs.txt'
+
 ###############################################################################
 ### Plot Results
 ###############################################################################
@@ -43,7 +45,7 @@ for ii, BC in enumerate([BC1,BC2,BC3]):
         **BC)
     
     Ex.read_wave(**BC)   
-    fit_locs = np.loadtxt('../results/{}_diff_fit_locs.txt'.format(Ex.task_name),delimiter = ',',skiprows=1)
+    fit_locs = np.loadtxt(file_name.format(Ex.task_name),delimiter = ',',skiprows=1)
 
     ax.plot(fit_locs[:,0],fit_locs[:,2],'-',lw = 2,label = text_legend[ii])
     ax2.plot(fit_locs[:,3],fit_locs[:,2],'-',lw = 2)#,label = text_legend[ii])
@@ -61,7 +63,6 @@ ax2.set_ylim([0,10])
 ax2.set_xlim([0,1.0])
 ax2.grid(True)
 ax2.tick_params(axis="both",which="major",labelsize=textsize)
-# ax.text(-0.13,-0.15,text_id[ii], bbox=dict(facecolor='w', alpha=1,boxstyle='round'),fontsize=textsize, transform=ax.transAxes)
 
 plt.tight_layout()
 # plt.savefig('../results/Fig05_Impact_Location_confined.png',dpi=300)   

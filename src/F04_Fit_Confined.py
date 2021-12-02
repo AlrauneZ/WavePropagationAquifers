@@ -6,8 +6,8 @@ from WavePropagationAquifers import WavePropagationAquifers
 ### Model settings
 ###############################################################################
 
-# flow_setting = 'confined'   
-flow_setting = 'leakage'   
+flow_setting = 'confined'   
+# flow_setting = 'leakage'   
 
 BC1 = dict(
     BC_setting =  'tide_wave',   
@@ -74,6 +74,6 @@ for ii, BC in enumerate([BC1,BC2,BC3]):
 
 plt.tight_layout()
 # plt.savefig('../results/Fig04_Model_Fitting.png',dpi=300)   
-# plt.savefig('../results/Fig04_Model_Fitting_{}.pdf'.format(flow_setting))   
+plt.savefig('../results/Fig04_Model_Fitting_{}.pdf'.format(flow_setting))   
 
 

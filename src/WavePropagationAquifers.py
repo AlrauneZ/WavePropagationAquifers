@@ -1,8 +1,5 @@
 import numpy as np
 from scipy.optimize import curve_fit
-# from scipy.special import erfc
-# import copy
-# import lmfit
 import os #, sys, subprocess, shutil
 import pickle
 import matplotlib.pyplot as plt
@@ -68,7 +65,6 @@ class WavePropagationAquifers:
         
         if file_wave == None:
             file_wave = '../data/{}.txt'.format(self.BC_setting)
-            # file_wave = '../data/{}.csv'.format(self.task_name)
         if not os.path.isfile(file_wave):
             raise ValueError("wave input file is not valid: " + str(file_wave))
 
@@ -77,7 +73,6 @@ class WavePropagationAquifers:
             tide = tide[:int(cut_input),:]
 
         self.dt = (tide[-1,0]-tide[0,0])/(len(tide[:,0])-1)
-        # self.dt = (tide[-1,0]-tide[0,0])/(len(tide[:,0]))
  
         if normalize_time is False:
             self.wave_time = tide[:,0]
@@ -202,7 +197,7 @@ class WavePropagationAquifers:
         if file_results is None:
              file_results= r'{}/{}_numerical.p'.format(self.task_root,self.task_name)
            
-        # Write data in binary format
+        ### Write data in binary format
         with open(file_results, 'wb') as filehandle:
             pickle.dump([self.t_num,x_num,head_tx_num], filehandle)
         print("\nSimulation results saved to binary (pickle) file: \n {}".format(file_results))
@@ -214,7 +209,6 @@ class WavePropagationAquifers:
         
         if file_results is None:
             file_results= r'{}/{}_numerical.p'.format(self.task_root,self.task_name)
-        # print(file_results)    
         
         if not os.path.isfile(file_results):
             raise ValueError('File with stored numerical model results not existant at: \n {}'.format(file_results))
@@ -233,10 +227,10 @@ class WavePropagationAquifers:
                            wave_data = 'input_BC', #'piez'
                            **kwargs,
                            ):
-        #################################################################################
-        # Decompose tidal wave
-        #################################################################################
-
+        
+        """ Decompose tidal wave
+        """
+        
         if wave_data == 'input_BC':
             if self.wave is None:
                 raise ValueError('Input wave not given. Read in wave data first.')           
@@ -268,7 +262,6 @@ class WavePropagationAquifers:
         
         wavelength   = freqs[0:middle] * 2.*np.pi
         phase_shift  = np.arctan2(fft.imag[0:middle],fft.real[0:middle])
-        # phase_shift  = np.arctan2(fft.imag[0:middle],fft.real[0:middle]) + np.pi/2
         amplitude    = np.zeros(middle)
         
         for i in range(middle):
@@ -298,9 +291,8 @@ class WavePropagationAquifers:
                              **kwargs,
                              ):
     
-        #################################################################################
-        # Reconstruct tidal wave and compare with the original wave
-        #################################################################################
+        """ Reconstruct tidal wave and compare with the original wave
+        """
 
         if wave_data == 'input_BC':
             if self.wave is None:
@@ -351,7 +343,7 @@ class WavePropagationAquifers:
         if write_to_file:
             if file_piez is None:
                 file_piez= r'{}/{}_piez.txt'.format(self.task_root,self.task_name)
-            # Write data in text format
+            ### Write data in text format
             np.savetxt(file_piez, np.vstack((self.t_piez, self.h_piez)).T,delimiter=',',header='times , heads, at x = {}'.format(self.x_piez))
             print("\nPrepared simulation results to piezometric data, \nsaved to text file: \n {}".format(file_piez))
         
@@ -420,7 +412,6 @@ class WavePropagationAquifers:
                                 x_ana = np.linspace(0,3000,20), 
                                 diffusivity = None,
                                 cS = None,
-                                # cT = None,
                                 write_to_file = False,
                                 **kwargs,
                                 ):
@@ -437,15 +428,11 @@ class WavePropagationAquifers:
         else:
             diffusivity = np.float(diffusivity)
         
-        #################################################################################
         ### Check availability of wave decomposition components of input wave       
-        #################################################################################
         if self.fft is None: 
             self.decompose_wave_fft(**kwargs)
         
-        #################################################################################
         ### Calculate analytical solution
-        #################################################################################      
         A = self.fft['amplitude']
         w = self.fft['wavelength']
         phi = self.fft['phase_shift']
@@ -457,21 +444,12 @@ class WavePropagationAquifers:
             if cS is None:
                 cS = self.c_L*self.ss*self.d_conf
             else:
-                cS = np.float(cS)
-            # if cT is None:
-            #     cT = self.c_L*self.hk*self.d_conf
-            # else:
-            #     cT = np.float(cT)
-            
+                cS = np.float(cS)           
 
             cT = cS / diffusivity
             p = np.sqrt(0.5*np.sqrt(1/cT**2 + (w[np.newaxis,:]*diffusivity)**2) + 0.5/cT)
             term1 = self.x_ana[np.newaxis,:,np.newaxis] * p
             term2 = self.x_ana[np.newaxis,:,np.newaxis] * (0.5*w[np.newaxis,:] * diffusivity)/p
-
-            # p2 = np.sqrt(np.sqrt(1./(cS*w[np.newaxis,:])**2 + 1) + 1./(cS*w[np.newaxis,:]))
-            # term1 = self.x_ana[np.newaxis,:,np.newaxis] * np.sqrt(0.5*w[np.newaxis,:]*diffusivity) * p2
-            # term2 = self.x_ana[np.newaxis,:,np.newaxis] * np.sqrt(0.5*w[np.newaxis,:]*diffusivity) / p2
 
         else:
             raise ValueError('No analytical solution available for flow setting: {}'.format(self.flow_setting))
@@ -492,9 +470,8 @@ class WavePropagationAquifers:
         if file_results is None:
              file_results= r'{}/{}_analytical.p'.format(self.task_root,self.task_name)
 
-        # Write data in binary format
+        ### Write data in binary format
         with open(file_results, 'wb') as filehandle:
-            # store the data as binary data stream
             pickle.dump([self.t_ana,self.x_ana,self.head_tx_ana], filehandle)
         print("\nAnalytical results saved to binary (pickle) file: \n {}".format(file_results))
 
@@ -509,7 +486,7 @@ class WavePropagationAquifers:
         if not os.path.isfile(file_results):
             raise ValueError('File with stored analytical model results not existant at: \n {}'.format(file_results))
 
-        # read the data as binary data stream
+        ### read the data as binary data stream
         with open(file_results, 'rb') as filehandle:
             data = pickle.load(filehandle)
         self.x_ana = data[0]
@@ -640,14 +617,11 @@ class WavePropagationAquifers:
                  **kwargs,
                  ):
         
-        # if self.flow_setting != 'leakage':
-        #     raise ValueError('Fitting routine does not match flow setting! (choose leakage)')
         self.extract_dominant_input_wave_component()
         self.extract_piez_wave_component()
 
         def model_leakage(t,diffusivity,cS):
             ### leakage model for dominant wave component
-            # p2 = np.sqrt(np.sqrt(1./cS**2 + 1) + 1./(cS*self.w_max))
             p2 = np.sqrt(np.sqrt(1./(cS*self.w_max)**2 + 1) + 1./(cS*self.w_max))
             a1 = self.x_piez *np.sqrt(self.w_max * 0.5 * diffusivity)* p2
             a2 = self.x_piez *np.sqrt(self.w_max * 0.5 * diffusivity) / p2
@@ -656,7 +630,6 @@ class WavePropagationAquifers:
 
         def model_leakage_fix_cS(t,diffusivity):
             ### leakage model for dominant wave component
-            # p2 = np.sqrt(np.sqrt(1./cS**2 + 1) + 1./(cS*self.w_max))
             p2 = np.sqrt(np.sqrt(1./(fix_cS*self.w_max)**2 + 1) + 1./(fix_cS*self.w_max))
             a1 = self.x_piez *np.sqrt(self.w_max * 0.5 * diffusivity)* p2
             a2 = self.x_piez *np.sqrt(self.w_max * 0.5 * diffusivity) / p2
@@ -699,14 +672,12 @@ class WavePropagationAquifers:
         self.wave_ana_max = model_leakage(self.t_piez,self.diff_fit,self.cS_fit)
 
         ### calculate head with analytical solution for fitted diffusivity value
-        # if self.flow_setting == 'confined':
         self.head_ana_fit = self.run_analytical_model(
             t_ana = self.t_piez,
             t_rel = False,
             x_ana = self.x_piez,
             diffusivity = self.diff_fit,
             cS = self.cS_fit,
-            # cT = self.cT_fit,
             )[2]
 
         if verbose:

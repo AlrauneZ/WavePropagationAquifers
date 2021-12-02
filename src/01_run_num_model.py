@@ -1,13 +1,13 @@
-import numpy as np
+#import numpy as np
 from WavePropagationAquifers import WavePropagationAquifers
 
 ###############################################################################
 ### Model settings
 ###############################################################################
 
+flow_setting = 'confined'   
 # flow_setting = 'leakage'   
-# flow_setting = 'confined'   
-flow_setting = 'barrier'   
+# flow_setting = 'barrier'   
 
 BC1 = dict(
     BC_setting =  'tide_wave',   
@@ -43,4 +43,3 @@ Ex.read_wave(**BC)
 ##############################################################################
 
 Ex.run_numerical_model(**BC) 
-#Ex.read_num_from_pickle() 

@@ -9,13 +9,11 @@ from WavePropagationAquifers import WavePropagationAquifers
 
 BC1 = dict(
     BC_setting = 'tide_wave', 
-    # task_name =  'tide_wave',    
     normalize_time = True,
     normalize_hs = True,
     )
 BC2 = dict(
     BC_setting = 'square_wave', 
-    # task_name = 'square_wave',    
     normalize_time = False,
     normalize_hs = False
     )

@@ -6,7 +6,7 @@ from WavePropagationAquifers import WavePropagationAquifers
 ### Model settings
 ###############################################################################
 
-# flow_setting = 'confined'   
+flow_setting = 'confined'   
 flow_setting = 'leakage'   
 
 BC1 = dict(
@@ -40,18 +40,18 @@ text_id = ['a','b','c']
 
 if flow_setting == 'confined':
     times_rel_compare = [0.3,0.6,0.9] # relative simulation time points for comparison
-    x_max = [3000,3000,6000]
+    x_max = [2000,2000,6000]
+    fig_name  = '../results/Fig03_Solution_Performance_{}.pdf'.format(flow_setting)
 elif flow_setting == 'leakage':
     x_max = 800.*np.ones(len(range_BCs))
     times_rel_compare = [0.3,0.5,0.7,0.9] # relative simulation time points for comparison
+    fig_name  = '../results/SI_Fig03_Solution_Performance_{}.pdf'.format(flow_setting)
 
 fig = plt.figure(figsize=[7.5,2.5])
 for ii, BC in enumerate(range_BCs):
     ax = fig.add_subplot(1,3,ii+1)
 
-    ##############################################################################
     ### Calculate/Load Results of numerical and analytical model 
-    ##############################################################################
     Ex = WavePropagationAquifers(
         flow_setting = flow_setting,
         **BC)
@@ -61,7 +61,6 @@ for ii, BC in enumerate(range_BCs):
     Ex.select_sim_times(times_select = times_rel_compare)
     Ex.run_analytical_model(     # calculate solution at specified time points
                             x_ana = np.linspace(0,x_max[ii],20),
-                            # x_ana = np.arange(0,Ex.x_num[-1],200),
                             t_ana= times_rel_compare,
                             t_rel = True)
 
@@ -82,7 +81,7 @@ for ii, BC in enumerate(range_BCs):
     ax.text(-0.13,-0.15,text_id[ii], bbox=dict(facecolor='w', alpha=1,boxstyle='round'),fontsize=textsize, transform=ax.transAxes)
 
 plt.tight_layout()
-# plt.savefig('../results/Fig03_Solution_Performance_{}.png'.format(flow_setting),dpi=300)   
-plt.savefig('../results/Fig03_Solution_Performance_{}.pdf'.format(flow_setting))   
+# plt.savefig(fig_name,dpi=300)   
+plt.savefig(fig_name)   
 
 

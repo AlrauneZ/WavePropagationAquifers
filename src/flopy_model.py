@@ -20,30 +20,27 @@ def model_confined(dt,
                 nrow = 1,                                  # Number of rows
                 ncol = 15000,                              # Number of columns
                 hk = 25,                                   # Horizontal conductivity
-#                vka = 25,                                  # Vertical conductivity
                 ss = 5e-05,                                # Specific storage [m-1]
                 dx_max = 2,
                 **settings):
 
     modelname = '{}{}'.format(task_root,task_name)
-    # Start timer
+    ### Start timer
     start = time.time()
 
-    # Calculate x series
+    ### Calculate x series
     xi= np.logspace(0,np.log10(Lx),ncol+1)-1
-    # xi = np.exp(np.linspace(start=0, stop=np.log(Lx), num=ncol+1)) - 1
     xi[ncol] += 1
 
     delr = np.diff(xi)  # Voxel length x direction
     delc= Ly / nrow     # Voxel length y direction
     
     ix_max = np.argmax(delr>dx_max)
-    # print(xi[ix_max])
     
-    # Define the Stress Periods
+    ### Define the Stress Periods
     nper   = len(wave)                             # Number of stress periods 
    
-    # Create grid 
+    ### Create grid 
     mf = flopy.modflow.Modflow(modelname, exe_name=exe_name)
     dis = flopy.modflow.ModflowDis(
         mf,
@@ -63,14 +60,14 @@ def model_confined(dt,
     gridx = dis.get_node_coordinates()[1]
     headstart = ztop - min(wave-np.mean(wave)) + 1
     
-    # Assign boundary conditions
+    ### Assign boundary conditions
     flopy.modflow.ModflowBas(
         mf, 
         ibound=np.ones((nlay, nrow, ncol), dtype=np.int32), 
         strt=headstart * np.ones((nlay, nrow, ncol), dtype=np.float32),
         )
  
-    # Assign hydraulic parameters
+    ### Assign hydraulic parameters
     flopy.modflow.ModflowLpf(
         mf, 
         hk=hk, 
@@ -79,24 +76,23 @@ def model_confined(dt,
         ipakcb=53,
         )
  
-    # Load Modflow solver
+    ### Load Modflow solver
     flopy.modflow.ModflowPcg(mf)
     
-    # Define stress period data    
+    ### Define stress period data    
     stress_period_data = {}
     for i in range(nper):
         stageleft = wave[i] + headstart 
-        # condleft = hk * (stageleft - zbot) * delc * 1000
         condleft = 10000	
         stress_period_data[i] = [0, 0, 0, stageleft, condleft]
        
-    # Load stress period data
+    ### Load stress period data
     flopy.modflow.ModflowGhb(
         mf, 
         stress_period_data=stress_period_data,
         )
     
-    # Define output
+    ### Define output
     stress_period_out = {}
     for kper in range(nper):
         stress_period_out[(kper, 0)] = [
@@ -104,36 +100,36 @@ def model_confined(dt,
             "print head",
         ]
     
-    # Load output file
+    ### Load output file
     flopy.modflow.ModflowOc(
         mf, 
         stress_period_data=stress_period_out, 
         compact=True,
         )
       
-    # Write model input files
+    ### Write model input files
     mf.write_input()
     
-    # Run model
+    ### Run model
     success, mfoutput = mf.run_model(silent=True, pause=False)
     if not success:
         raise Exception("MODFLOW did not terminate normally.")
        
-    # Create the headfile output objects
+    ### Create the headfile output objects
     headobj = bf.HeadFile(modelname + ".hds") 
     times = headobj.get_times() # end time points of stress periods
    
-    # Create hydraulic head array
+    ### Create hydraulic head array
     head_matrix = np.ones(shape=(nper,ix_max))
     
-    # Extract head files in a readable form
+    ### Extract head files in a readable form
     for i in range(nper):
         head_matrix[i,:] = headobj.get_data(totim=times[i])[0][0,0:ix_max] - headstart
 
-    # stop timer
+    ### stop timer
     end = time.time()
 
-    # total time taken
+    ### total time taken
     print("Simulation finished successfully")
     print(f" Runtime [s]: {end - start}")
    
@@ -156,7 +152,6 @@ def model_leakage(dt,
                 hk_unconfined = 25,
                 hk_confining = 0.01,
                 hk_confined = 25,
-#                vka=25,
                 ss_confined = 5e-5,
                 ss_unconfined = 0.025,
                 fluctuation_unconfined_aquifer=False, ### regulating BC in unconfined aquifer
@@ -164,12 +159,11 @@ def model_leakage(dt,
                 **settings):
     
     modelname = '{}{}'.format(task_root,task_name)
-    # Start timer
+    ### Start timer
     start = time.time()
     
-    # Calculate x series
+    ### Calculate x series
     xi= np.logspace(0,np.log10(Lx),ncol+1)-1
-    # xi = np.exp(np.linspace(start=0, stop=np.log(Lx), num=ncol+1)) - 1
     xi[ncol] += 1
     
     delr = np.diff(xi)  # Voxel length x direction
@@ -177,12 +171,11 @@ def model_leakage(dt,
 
     ix_max = np.argmax(delr>dx_max)
     
-    # Define the Stress Periods
-
+    ### Define the Stress Periods
     nper   = len(wave)                                     
     ztop = thickness_lay1 + thickness_lay2 + thickness_lay3
 
-    # Create grid 
+    ### Create grid 
     mf = flopy.modflow.Modflow(modelname, exe_name=exe_name)
     dis = flopy.modflow.ModflowDis(
         mf,
@@ -201,7 +194,7 @@ def model_leakage(dt,
     
     gridx = dis.get_node_coordinates()[1]
     
-    # Assign boundary conditions
+    ### Assign boundary conditions
     ibound = np.ones((nlay, nrow, ncol), dtype=np.int32)
     if fluctuation_unconfined_aquifer is False:  
         ibound[0,:,:] = -1
@@ -213,7 +206,7 @@ def model_leakage(dt,
                              strt = headstart * np.ones((nlay, nrow, ncol), dtype=np.float32),
                              )
     
-    # Assign hydraulic conductivities
+    ### Assign hydraulic conductivities
     hk = np.ones((nlay,nrow,ncol))
     hk[0,:,:] = hk_unconfined
     hk[1,:,:] = hk_confining
@@ -225,20 +218,18 @@ def model_leakage(dt,
     ss[0,:,:] = ss_unconfined
     ss[1,:,:] = ss_confined
     ss[2,:,:] = ss_confined
-    # ss = ss_confined * np.ones((nlay,nrow,ncol))
        
     flopy.modflow.ModflowLpf(mf, 
                              hk=hk, 
                              vka=vka, 
                              ss=ss, 
-                             # laytyp=laytyp, 
                              ipakcb=53
                              )
     
-    # Load Modflow solver
+    ### Load Modflow solver
     flopy.modflow.ModflowPcg(mf)
     
-    # Define stress period data    
+    ### Define stress period data    
     stress_period_data = {}
     
     for i in range(len(wave)):
@@ -248,12 +239,12 @@ def model_leakage(dt,
             bound_sp.append([il, 0, 0, stageleft, 10000])
         stress_period_data[i] = bound_sp
     
-    # Load stress period data
+    ### Load stress period data
     flopy.modflow.ModflowGhb(mf, 
                              stress_period_data=stress_period_data,
                              )
     
-    # Define output
+    ### Define output
     stress_period_out = {}
     for kper in range(nper):
         stress_period_out[(kper, 0)] = [
@@ -261,37 +252,36 @@ def model_leakage(dt,
             "print head",
         ]
     
-    # Load output file
+    ### Load output file
     flopy.modflow.ModflowOc(mf, 
                             stress_period_data=stress_period_out, 
                             compact=True,
                             )
       
-    # Write model input files
+    ### Write model input files
     mf.write_input()
     
-    # Run model
+    ### Run model
     success, mfoutput = mf.run_model(silent=True, pause=False)
     if not success:
         raise Exception("MODFLOW did not terminate normally.")
        
-    # Create the headfile and budget output objects
+    ### Create the headfile and budget output objects
     headobj = bf.HeadFile(modelname + ".hds") 
     times = headobj.get_times()
     
-    # Create hydraulic head array
+    ### Create hydraulic head array
     head_matrix = np.ones(shape=(nper,ix_max))
-    #head_matrix2 = np.ones(shape=(nper,ix_max))
     
-    # Extract head files in a readable form
+    ### Extract head files in a readable form
     for i in range(nper):
         head_matrix[i,:] = headobj.get_data(totim=times[i])[2][0,0:ix_max] - headstart # results in confined aquifer (3rd layer)
         #head_matrix2[i,:] = headobj.get_data(totim=times[i])[0][0,0:ix_max] - headstart    # results in unconfined aquifer
     
-    # stop timer
+    ### stop timer
     end = time.time()
     
-    # total time taken
+    ### total time taken
     print("Simulation finished successfully")
     print(f" Runtime [s]: {end - start}")
     
@@ -314,7 +304,6 @@ def model_leakage_old(dt,
                 hk_unconfined=25,
                 hk_confining=0.01,
                 hk_confined=25,
-#                vka=25,
                 ss_confined=5E-5,
                 lay1_unconfined = True,
                 sy=0.25,
@@ -324,10 +313,10 @@ def model_leakage_old(dt,
                 **settings):
     
     modelname = '{}{}'.format(task_root,task_name)
-    # Start timer
+    ### Start timer
     start = time.time()
     
-    # Calculate x series
+    ### Calculate x series
     xi = np.exp(np.linspace(start=0, stop=np.log(Lx), num=ncol+1)) - 1
     xi[ncol] += 1
     
@@ -337,13 +326,13 @@ def model_leakage_old(dt,
 
     ix_max = np.argmax(delr>2)
     
-    # Define the Stress Periods
+    ### Define the Stress Periods
     nper   = len(wave)                                  # Number of stress periods
     perlen = dt*np.ones(len(wave))                       # Stress period lengths
     nstp   = np.ones((len(wave)), dtype=np.int32)       # Number of timesteps for each stress period
     steady = np.zeros((len(wave)), dtype=bool)
     
-    # Create grid 
+    ### Create grid 
     mf = flopy.modflow.Modflow(modelname, exe_name=exe_name)
     dis = flopy.modflow.ModflowDis(
         mf,
@@ -362,7 +351,7 @@ def model_leakage_old(dt,
     
     gridx = dis.get_node_coordinates()[1]
     
-    # Assign boundary conditions
+    ### Assign boundary conditions
     if fluctuation_1st_aquifer:  
         ibound = np.ones((nlay, nrow, ncol), dtype=np.int32)
     else:
@@ -377,15 +366,14 @@ def model_leakage_old(dt,
                               strt=strt,
                               )
     
-    # Assign hydraulic conductivities
+    ### Assign hydraulic conductivities
     hk = np.ones((nlay,nrow,ncol))
     hk[0,:,:] = hk_unconfined
     hk[1,:,:] = hk_confining
     hk[2,:,:] = hk_confined
-    
     vka = hk
     
-    # Assign storage values    
+    ### Assign storage values    
     if lay1_unconfined:
         ss_unconfined = sy / thickness_lay1
     else:
@@ -405,10 +393,10 @@ def model_leakage_old(dt,
                               ipakcb=53
                               )
     
-    # Load Modflow solver
+    ### Load Modflow solver
     flopy.modflow.ModflowPcg(mf)
     
-    # Define stress period data    
+    ### Define stress period data    
     stress_period_data = {}
     
     for i in range(len(wave)):
@@ -419,12 +407,12 @@ def model_leakage_old(dt,
                 bound_sp.append([il, ir, 0, stageleft, 10000])
         stress_period_data[i] = bound_sp
     
-    # Load stress period data
+    ### Load stress period data
     flopy.modflow.ModflowGhb(mf, 
                               stress_period_data=stress_period_data,
                               )
     
-    # Define output
+    ### Define output
     stress_period_data = {}
     for kper in range(nper):
         for kstp in range(nstp[kper]):
@@ -433,37 +421,34 @@ def model_leakage_old(dt,
                 "print head",
             ]
     
-    # Load output file
+    ### Load output file
     flopy.modflow.ModflowOc(mf, 
                             stress_period_data=stress_period_data, 
                             compact=True,
                             )
       
-    # Write model input files
+    ### Write model input files
     mf.write_input()
     
-    # Run model
+    ### Run model
     success, mfoutput = mf.run_model(silent=True, pause=False)
     if not success:
         raise Exception("MODFLOW did not terminate normally.")
        
-    # Create the headfile and budget output objects
+    ### Create the headfile and budget output objects
     headobj = bf.HeadFile(modelname + ".hds") 
     times = headobj.get_times()
     
-    # Create hydraulic head array
+    ### Create hydraulic head array
     head_matrix = np.ones(shape=(nper,ix_max))
-    #head_matrix2 = np.ones(shape=(nper,ix_max))
     
-    # Extract head files in a readable form
+    ### Extract head files in a readable form
     for i in range(nper):
         head_matrix[i,:] = headobj.get_data(totim=times[i])[2][0,0:ix_max] - headstart
-        #head_matrix2[i,:] = headobj.get_data(totim=times[i])[0][0,0:ix_max] - headstart
     
-    # stop timer
+    ### stop timer
     end = time.time()
     
-    # total time taken
     print("Simulation finished successfully")
     print(f" Runtime [s]: {end - start}")
     
@@ -482,21 +467,17 @@ def model_barrier(dt,
                 nrow = 1,           # Number of rows
                 ncol = 15000,       # Number of columns
                 hk = 25,            # Horizontal conductivity
-#                vka = 25,          # Vertical conductivity
                 ss = 5e-05,         # Specific storage [m-1]
-                # hk_barrier = 0.01,  # hydraulic conductivity barrier
                 d_barrier = 0.1,    # Thickness sheetpiles [m]
                 c_barrier = 10.,    # resistance barrier [d]
                 dx_max = 2,         # max 
-                # sy=0.33,          # specific yield
-                # laytyp = -1       # Unconfined (laytyp > 0)
                 **settings):
 
     modelname = '{}{}'.format(task_root,task_name)
-    # Start timer
+    ### Start timer
     start = time.time()
 
-    # Calculate x series
+    ### Calculate x series
     xi= np.logspace(0,np.log10(Lx),ncol+1)-1
     xi = np.exp(np.linspace(start=0, stop=np.log(Lx), num=ncol+1)) - 1
     xi[ncol] = xi[ncol] + 1
@@ -505,10 +486,10 @@ def model_barrier(dt,
 
     ix_max = np.argmax(delr>dx_max)
 
-    # Define the Stress Periods
+    ### Define the Stress Periods
     nper   = len(wave)                                  # Number of stress periods
        
-    # Create grid 
+    ### Create grid 
     mf = flopy.modflow.Modflow(modelname, exe_name=exe_name)
     dis = flopy.modflow.ModflowDis(
         mf,
@@ -528,7 +509,7 @@ def model_barrier(dt,
     gridx = dis.get_node_coordinates()[1]
     headstart = ztop - min(wave-np.mean(wave)) + 1
     
-    # Assign boundary conditions
+    ### Assign boundary conditions
     flopy.modflow.ModflowBas(
         mf, 
         ibound=np.ones((nlay, nrow, ncol), dtype=np.int32),
@@ -540,25 +521,20 @@ def model_barrier(dt,
     hk_barrier = d_barrier/c_barrier                    # conductivity of barrier [m/d]
     i_barrier  = (np.abs(xi - d_barrier)).argmin()      # Index of x-location where barrier ends
     hks[:,:,0:i_barrier] = hk_barrier      
-    # print('index:', hks.shape[2],i_barrier)
-    # print('K_values:', hk,hk_barrier)
-    # print(hks[:,:,0:i_barrier+20])
 
-    # Assign hydraulic parameters
+    ### Assign hydraulic parameters
     flopy.modflow.ModflowLpf(
         mf, 
         hk=hks, 
         vka=hks, 
         ss=ss, 
-        # sy=sy, 
-        # laytyp=laytyp, 
         ipakcb=53,
     )
     
-    # Load Modflow solver
+    ### Load Modflow solver
     flopy.modflow.ModflowPcg(mf)
     
-    # Define stress period data    
+    ### Define stress period data    
     stress_period_data = {}
     
     for i in range(nper):
@@ -566,13 +542,13 @@ def model_barrier(dt,
         condleft = 10000	
         stress_period_data[i] = [0, 0, 0, stageleft, condleft]
    
-    # Load stress period data
+    ### Load stress period data
     flopy.modflow.ModflowGhb(
         mf, 
         stress_period_data=stress_period_data
         )
     
-    # Define output
+    ### Define output
     stress_period_out = {}
     for kper in range(nper):
         stress_period_out[(kper, 0)] = [
@@ -580,37 +556,35 @@ def model_barrier(dt,
             "print head",
         ]
 
-    # Load output file
+    ### Load output file
     flopy.modflow.ModflowOc(
         mf, 
         stress_period_data=stress_period_out, 
         compact=True,
     )
       
-    # Write model input files
+    ### Write model input files
     mf.write_input()
     
-    # Run model
+    ### Run model
     success, mfoutput = mf.run_model(silent=True, pause=False)
     if not success:
         raise Exception("MODFLOW did not terminate normally.")
        
-    # Create the headfile and budget output objects
+    ### Create the headfile and budget output objects
     headobj = bf.HeadFile(modelname + ".hds") 
     times = headobj.get_times()
-    # cbb = bf.CellBudgetFile(modelname + ".cbc")
-
-    # Create hydraulic head array
+    
+    ### Create hydraulic head array
     head_matrix = np.ones(shape=(nper,ix_max))   
 
-    # Extract head files in a readable form
+    ### Extract head files in a readable form
     for i in range(nper):
         head_matrix[i,:] = headobj.get_data(totim=times[i])[0][0,0:ix_max] - headstart
 
-    # stop timer
+    ### stop timer
     end = time.time()
 
-    # total time taken
     print("Simulation finished successfully")
     print(f" Runtime [s]: {end - start}")
 
