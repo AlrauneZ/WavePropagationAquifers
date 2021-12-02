@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/389735344.svg)](https://zenodo.org/badge/latestdoi/389735344)
+
 # Overview
 
 This project provides a python scripts to simulate the wave propagation from 
