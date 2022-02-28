@@ -55,6 +55,7 @@ for ii, BC in enumerate([BC1,BC2,BC3]):
     Ex.read_wave(**BC)
     Ex.prepare_piezometric_data(x = x_piezo, write_to_file=False)
     Ex.fit_data_to_analytical()
+    Ex.fit_data_to_analytical(dominant=False)
 
     ax.plot(Ex.t_piez,Ex.h_piez,lw = lw,c = 'C0',label = 'observed')
     ax.plot(Ex.t_piez,Ex.head_ana_fit,ls = '--',lw = lw-.5,c = 'C1',label = 'model fit')

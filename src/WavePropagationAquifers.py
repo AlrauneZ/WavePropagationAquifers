@@ -516,7 +516,7 @@ class WavePropagationAquifers:
 
         return self.A_max, self.w_max, self.phi_max
 
-    def extract_piez_wave_component(self,
+    def extract_dominent_piez_wave_component(self,
                                     reshape_time= False,
                                     **kwargs,
                                     ):
@@ -544,6 +544,58 @@ class WavePropagationAquifers:
    
         return A_piez_max, w_piez_max, phi_piez_max
 
+    def extract_input_wave_components(self,
+                                      max_period = 50,
+                                      threshold = 0.2,
+                                      **kwargs):
+        if self.fft is None:
+            self.decompose_wave_fft(wave_data = 'input_BC',**kwargs)
+
+        ### extract all fft components with periods above max_period
+        condition_cut = 2.*np.pi / self.fft['wavelength'] < max_period
+
+        ### reduce amplitudes to those fulfilling condition
+        A_cut = np.compress(condition_cut,self.fft['amplitude'])
+        # index_cut = np.compress(condition_cut,np.arange(len(self.fft['amplitude'])))
+
+        ### identify wave components within the threshold value of max wave component
+        condition_threshold = self.fft['amplitude'] / max(A_cut) > threshold
+        # A_threshold = np.compress(condition_cut*condition_threshold,self.fft['amplitude'])
+        self.index_threshold = np.compress(condition_cut*condition_threshold,np.arange(len(self.fft['amplitude'])))
+
+        self.A_thres = self.fft['amplitude'][self.index_threshold]
+        self.w_thres = self.fft['wavelength'][self.index_threshold]
+        self.phi_thres = self.fft['phase_shift'][self.index_threshold]
+
+        return self.index_threshold,self.A_thres, self.w_thres, self.phi_thres
+        
+    def extract_piez_wave_components(self,
+                                    reshape_time= False,
+                                    **kwargs,
+                                    ):
+
+        self.extract_input_wave_components(**kwargs)
+
+        ### redistribute observed values at identical time points as input wave 
+        ### to allow proper wave decomposition
+        if reshape_time is True:
+            h_piez_reshape = np.interp(self.wave_time,self.t_piez,self.h_piez)
+            self.h_piez = h_piez_reshape
+            self.t_piez = self.wave_time
+                             
+        self.decompose_wave_fft(wave_data = 'piez', **kwargs)
+
+        w_piez_thres = self.fft_piez['wavelength'][self.index_threshold]
+        A_piez_thres = self.fft_piez['amplitude'][self.index_threshold]
+        phi_piez_thres = self.fft_piez['phase_shift'][self.index_threshold]
+        
+        nt = len(self.t_piez)
+        n_fft = len(self.index_threshold)
+
+        self.wave_piez_thres =  np.sum(np.tile(A_piez_thres,(nt,1)) * np.cos(np.tile(w_piez_thres,(nt,1)) * np.tile(self.t_piez,(n_fft,1)).T + np.tile(phi_piez_thres,(nt,1))), axis=1)
+   
+        return A_piez_thres, w_piez_thres, phi_piez_thres
+
     def fit_data_to_analytical(self,                
                                **kwargs):
 
@@ -558,27 +610,52 @@ class WavePropagationAquifers:
             raise ValueError('No analytical solution available for flow setting: {}'.format(self.flow_setting))
 
         return results 
-        
+
     def fit_data_to_analytical_confined(self,
                  p0_diff = 1E-6,
                  bounds_diff = (1E-9, 1E-3),
+                 dominant = True,
                  verbose = True,
                  **kwargs,
                  ):
-       
-        self.extract_dominant_input_wave_component()
-        self.extract_piez_wave_component()
-        
-        def model_confined(t,diffusivity):
-            ### simple wave solution
-            a = self.x_piez * np.sqrt(self.w_max * 0.5 * diffusivity)           
-            h_xt = self.A_max * np.exp(-a) * np.cos(self.w_max*t + self.phi_max - a)            
-            return h_xt
+
+        if dominant:
+            self.extract_dominant_input_wave_component()
+            self.extract_dominent_piez_wave_component()
+            def model_confined(t,diffusivity):
+                ### simple wave solution for dominant wave component
+                a = self.x_piez * np.sqrt(self.w_max * 0.5 * diffusivity)           
+                h_xt = self.A_max * np.exp(-a) * np.cos(self.w_max*t + self.phi_max - a)            
+                return h_xt
+
+            target = self.wave_piez_max
+
+        else:
+            self.extract_input_wave_components()
+            self.extract_piez_wave_components()
+
+
+            def model_confined(t,diffusivity):
+                ### simple wave solution for multiple wave components
+                nt = len(t)
+                n_fft = len(self.index_threshold)
+
+                a = np.tile(self.x_piez * np.sqrt(self.w_thres * 0.5 * diffusivity),(nt,1))
+                amp = np.tile(self.A_thres,  (nt,1))
+                w   = np.tile(self.w_thres,  (nt,1))
+                phi = np.tile(self.phi_thres,(nt,1))
+                time   = np.tile(t,  (n_fft,1)).T
+
+                h_xt =  np.sum( amp*np.exp(-a) * np.cos(w * time + phi - a), axis=1)
+
+                return h_xt                  
+
+            target = self.wave_piez_thres
 
         popt, pcov = curve_fit(
             model_confined,
             self.t_piez,
-            self.wave_piez_max,
+            target,
             p0 = p0_diff,
             bounds=bounds_diff,
             )
@@ -608,44 +685,76 @@ class WavePropagationAquifers:
             print("Relative difference = {:.2f}%".format(self.eps_diff))
             
         return self.diff_fit, self.eps_diff #,self.head_ana_fit      
-
+        
     def fit_data_to_analytical_leakage(self,
                  p0 = [2e-6,0.05],
                  bounds = ([1e-9,1e-3], [1e-3,10]),
+                 dominant = True,
                  verbose = True,
                  fix_cS = False,
                  **kwargs,
                  ):
         
-        self.extract_dominant_input_wave_component()
-        self.extract_piez_wave_component()
+        if dominant:
 
-        def model_leakage(t,diffusivity,cS):
-            ### leakage model for dominant wave component
-            p2 = np.sqrt(np.sqrt(1./(cS*self.w_max)**2 + 1) + 1./(cS*self.w_max))
-            a1 = self.x_piez *np.sqrt(self.w_max * 0.5 * diffusivity)* p2
-            a2 = self.x_piez *np.sqrt(self.w_max * 0.5 * diffusivity) / p2
-            h_xt = self.A_max * np.exp(-a1) * np.cos(self.w_max*t + self.phi_max -a2)
-            return h_xt
+            self.extract_dominant_input_wave_component()
+            self.extract_dominent_piez_wave_component()
 
-        def model_leakage_fix_cS(t,diffusivity):
-            ### leakage model for dominant wave component
-            p2 = np.sqrt(np.sqrt(1./(fix_cS*self.w_max)**2 + 1) + 1./(fix_cS*self.w_max))
-            a1 = self.x_piez *np.sqrt(self.w_max * 0.5 * diffusivity)* p2
-            a2 = self.x_piez *np.sqrt(self.w_max * 0.5 * diffusivity) / p2
-            h_xt = self.A_max * np.exp(-a1) * np.cos(self.w_max*t + self.phi_max -a2)
-            return h_xt
+            def model_leakage(t,diffusivity,cS):
+                ### leakage model for dominant wave component
+                p2 = np.sqrt(np.sqrt(1./(cS*self.w_max)**2 + 1) + 1./(cS*self.w_max))
+                a1 = self.x_piez *np.sqrt(self.w_max * 0.5 * diffusivity)* p2
+                a2 = self.x_piez *np.sqrt(self.w_max * 0.5 * diffusivity) / p2
+                h_xt = self.A_max * np.exp(-a1) * np.cos(self.w_max*t + self.phi_max -a2)
+                return h_xt
 
+            target = self.wave_piez_max
+
+        else:
+            self.extract_input_wave_components()
+            self.extract_piez_wave_components()
+
+            def model_leakage(t,diffusivity,cS):
+                ### leakage model for dominant wave component
+                nt = len(t)
+                n_fft = len(self.index_threshold)
+                amp = np.tile(self.A_thres,  (nt,1))
+                w   = np.tile(self.w_thres,  (nt,1))
+                phi = np.tile(self.phi_thres,(nt,1))
+                time   = np.tile(t,  (n_fft,1)).T
+
+                p2 = np.sqrt(np.sqrt(1./(cS*w)**2 + 1) + 1./(cS*w))
+                a1 = self.x_piez *np.sqrt(w * 0.5 * diffusivity)* p2
+                a2 = self.x_piez *np.sqrt(w * 0.5 * diffusivity) / p2
+
+                h_xt =  np.sum( amp*np.exp(-a1) * np.cos(w * time + phi - a2), axis=1)
+
+                return h_xt
+ 
+            target = self.wave_piez_thres
+
+        
         if fix_cS is False:                    
             popt, pcov = curve_fit(
                 model_leakage,
                 self.t_piez,
-                self.wave_piez_max,
+                target,
                 p0 = p0,
                 bounds=bounds,
                 )
 
         else:
+            self.extract_dominant_input_wave_component()
+            self.extract_dominent_piez_wave_component()
+
+            def model_leakage_fix_cS(t,diffusivity):
+                ### leakage model for dominant wave component
+                p2 = np.sqrt(np.sqrt(1./(fix_cS*self.w_max)**2 + 1) + 1./(fix_cS*self.w_max))
+                a1 = self.x_piez *np.sqrt(self.w_max * 0.5 * diffusivity)* p2
+                a2 = self.x_piez *np.sqrt(self.w_max * 0.5 * diffusivity) / p2
+                h_xt = self.A_max * np.exp(-a1) * np.cos(self.w_max*t + self.phi_max -a2)
+                return h_xt
+
             popt, pcov = curve_fit(
                 model_leakage_fix_cS,
                 self.t_piez,

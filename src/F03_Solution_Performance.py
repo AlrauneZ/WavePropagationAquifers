@@ -7,7 +7,7 @@ from WavePropagationAquifers import WavePropagationAquifers
 ###############################################################################
 
 flow_setting = 'confined'   
-flow_setting = 'leakage'   
+# flow_set1ing = 'leakage'   
 
 BC1 = dict(
     BC_setting =  'tide_wave',   

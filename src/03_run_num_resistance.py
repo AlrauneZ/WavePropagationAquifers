@@ -34,23 +34,24 @@ flow_setting = 'leakage'
 # flow_setting = 'barrier'
 
 ### run simulation for individual resistance values
-run_sims = True #False #
+run_sims = False # True #
 
 ### select heads at x_piez for all resistance values
-select_heads = True #False #
+select_heads =True #False #  
 
 ### perform inverse estimation of numerical results with confined solution
-inverse_est_confined = True #False #
+inverse_est_confined = False #True #
 
 ### perform inverse estimation of numerical results with leakage solution
-inverse_est_leakage =  True # False # 
+inverse_est_leakage = True # False #  
 ### When inverse estimation with leakage solution: fix resistance
 
 ### observation location
-x_piez = 400
+x_piez = 200
 
 ### range of tested resistances
 if flow_setting == 'leakage':
+    # cL_range = np.logspace(2,5,10 * 3 + 1,endpoint = True)
     cL_range = np.logspace(0,3,10 * 3 + 1,endpoint = True)
 elif flow_setting == 'barrier':
     cL_range = np.logspace(-3,1,10 * 4 + 1,endpoint = True)
@@ -80,10 +81,10 @@ file_heads_cL = '{}{}_heads_cL_x{:.0f}.txt'.format(dir_cL,Ex.task_name,x_piez)
 ### aquifer simulation setting and analytical solution
 
 ### file containing fitting results assuming confined solution
-file_fit_cL_confined = '{}_fit_cL_x{:.0f}_confined.txt'.format(Ex.task_name,x_piez)    
+file_fit_cL_confined = '{}/{}_fit_cL_x{:.0f}_confined.txt'.format(Ex.task_root,Ex.task_name,x_piez)    
 
 ### file containing fitting results assuming leakage solution
-file_fit_cL_leakage = '{}_fit_cL_x{:.0f}_leakage.txt'.format(Ex.task_name,x_piez)      
+file_fit_cL_leakage = '{}/{}_fit_cL_x{:.0f}_leakage.txt'.format(Ex.task_root,Ex.task_name,x_piez)      
 
 ##############################################################################
 ### run simulation for individual resistance values
@@ -152,7 +153,8 @@ if inverse_est_confined:
     
     for ic, c_L in enumerate(cL_range):
         Ex.h_piez = h_piez[:,ic] 
-        Ex.fit_data_to_analytical_confined()
+        # Ex.fit_data_to_analytical_confined()
+        Ex.fit_data_to_analytical_confined(dominant=False)
         fit_results_confined[1,ic] = Ex.diff_fit
         fit_results_confined[2,ic] = Ex.eps_diff
                      
@@ -182,6 +184,7 @@ if inverse_est_leakage:
         diff_init = Ex.ss/Ex.hk
 
         Ex.fit_data_to_analytical_leakage(
+            dominant=False,
             p0 = [0.5*diff_init,0.5*cS_init],
             bounds = ([1e-9,1e-6], [1e-3,10]), # lower bounds, upper bounds
             )

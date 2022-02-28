@@ -26,8 +26,8 @@ file_name = '../results/{}_diff_fit_locs.txt'
 
 ###############################################################################
 ### SETTINGS 
-flow_setting = 'confined'
-BC = BC1
+flow_setting ='confined'
+BC = BC3
 x_range = np.arange(10,6510,10) ### range of piezometric locations 
 
 ###############################################################################
@@ -56,10 +56,13 @@ for ix,x in enumerate(x_range):
     ### extracting head observation time series as selected spatial location x
     x_piez, t_piez, h_piez = Ex.prepare_piezometric_data(x=x, write_to_file=False)
     x_piez_range.append(x_piez) # actual x-locations (of numerical data)
-    A_piez_range.append(Ex.extract_piez_wave_component()[0])
+    A_piez_range.append(Ex.extract_dominent_piez_wave_component()[0])
 
     ### inverse estimation of diffusivity through fitting to analytical solution
-    diff_fit, eps_diff = Ex.fit_data_to_analytical_confined(verbose = False)
+    # diff_fit, eps_diff = Ex.fit_data_to_analytical_confined(verbose = False)
+    diff_fit, eps_diff = Ex.fit_data_to_analytical_confined(
+        verbose = False,
+        dominant=False)
     diff_fit_range.append(diff_fit)
     eps_diff_range.append(eps_diff)
 
